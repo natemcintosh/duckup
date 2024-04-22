@@ -7,6 +7,39 @@ use reqwest::blocking::Client;
 use tempfile::tempdir;
 use zip::read::ZipArchive;
 
+#[derive(Deserialize)]
+struct Release {
+    assets: Vec<Asset>,
+}
+
+#[derive(Deserialize)]
+struct Asset {
+    browser_download_url: String,
+}
+
+fn get_latest_release_zip_url(
+    owner: &str,
+    repo: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // Construct the URL for GitHub API to fetch the latest release information
+    let url = "https://api.github.com/repos/duckdb/duckdb/releases/latest";
+
+    // Send a GET request to fetch the latest release information
+    let response = reqwest::blocking::get(url)?;
+    let release: Release = response.json()?;
+
+    // Extract the URL of the zip file from the release information
+    if let Some(asset) = release
+        .assets
+        .into_iter()
+        .find(|asset| asset.browser_download_url.ends_with(".zip"))
+    {
+        Ok(asset.browser_download_url)
+    } else {
+        Err("No zip file found in the latest release".into())
+    }
+}
+
 fn download_zip(url: &str) -> Result<PathBuf, Box<dyn std::error::Error>> {
     // Create a reqwest client
     let client = Client::new();

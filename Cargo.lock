@@ -272,6 +272,7 @@ name = "duckup"
 version = "0.1.0"
 dependencies = [
  "reqwest",
+ "serde",
  "tempfile",
  "zip",
 ]
