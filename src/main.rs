@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use clap::Parser;
 use reqwest::{blocking::Client, header::USER_AGENT};
 use tempfile::tempdir;
 use zip::read::ZipArchive;
@@ -185,8 +186,6 @@ fn get_latest_release_zip_urls() -> Result<Vec<String>, Box<dyn std::error::Erro
 }
 
 fn download_zip(url: &str, output_dir: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    dbg!(output_dir.is_dir());
-
     // Create a reqwest client
     let client = Client::new();
 
@@ -204,12 +203,10 @@ fn download_zip(url: &str, output_dir: &Path) -> Result<PathBuf, Box<dyn std::er
 
     // Copy the content of the response to the file
     let _ = response.copy_to(&mut file);
-    dbg!(&zip_file_path.exists());
     Ok(zip_file_path)
 }
 
 fn unzip_file(zip_file: &Path, output_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    dbg!(&zip_file.exists());
     let file = File::open(zip_file)?;
     let mut archive = ZipArchive::new(file)?;
 
@@ -256,7 +253,30 @@ fn get_matching_url<'a>(
         .ok_or("Could not find any matching URLs")?)
 }
 
+#[derive(clap::Parser)]
+#[command(version, about, long_about = None, arg_required_else_help(true))]
+struct CLI {
+    /// Run the update, downloading the latest binary, and installing it
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(clap::Subcommand)]
+enum Commands {
+    /// Runs the update
+    Update,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cli = CLI::parse();
+
+    match cli.command {
+        // All is good, just continue on with what is below
+        Some(Commands::Update) => {}
+        // Error out
+        None => panic!("Did not receive an expected command"),
+    }
+
     let info = os_info::get();
     let zip_urls: Vec<String> = get_latest_release_zip_urls()?.into_iter().collect();
     // Get the correct url for this architecture
@@ -268,13 +288,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(zip_dir.path())?;
     // Download the file
     let zip_file_path = download_zip(url, &zip_dir.path())?;
-    dbg!(&zip_file_path.exists());
 
     println!("Downloaded successfully!");
 
     let final_path = home::home_dir()
         .expect("Could not find home directory")
-        .join("Desktop")
+        .join(".local")
         .join("bin/");
     std::fs::create_dir_all(final_path.clone())?;
     unzip_file(&zip_file_path, &final_path.clone())?;
