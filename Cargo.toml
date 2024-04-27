@@ -2,6 +2,13 @@
 name = "duckup"
 version = "0.1.0"
 edition = "2021"
+license-file = "LICENSE"
+description = "A tool for downloading new versions of duckdb"
+repository = "https://github.com/natemcintosh/duckup"
+readme = "README.md"
+keywords = ["install", "duckdb"]
+categories = ["command-line-utilities"]
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
