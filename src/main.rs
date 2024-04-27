@@ -245,9 +245,11 @@ fn get_matching_url<'a>(
         // Only want the CLI binaries
         .filter(|url| url.contains("cli"))
         // Filter to the correct architecture
+        // Can't seem to find a list of what all the possible architecture might be,
+        // so I'm mostly guessing here.
         .filter(|url| match info.architecture() {
             Some("arm64") | Some("aarch") => url.contains("aarch"),
-            Some("amd") | Some("x86") => url.contains("amd"),
+            Some("amd") | Some("x86_64") => url.contains("amd"),
             Some(&_) | None => false,
         })
         .next()
@@ -270,9 +272,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Downloaded successfully!");
 
-    let final_path = Path::new("~/Desktop/bin/");
-    std::fs::create_dir_all(final_path)?;
-    unzip_file(&zip_file_path, &final_path)?;
+    let final_path = home::home_dir()
+        .expect("Could not find home directory")
+        .join("Desktop")
+        .join("bin/");
+    std::fs::create_dir_all(final_path.clone())?;
+    unzip_file(&zip_file_path, &final_path.clone())?;
     println!("Unzipped successfully into {:?}", final_path);
 
     Ok(())
