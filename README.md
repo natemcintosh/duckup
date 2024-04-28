@@ -6,6 +6,6 @@ Currently very dangerous: it just sticks it in `~/.local/bin/duckdb`, overwritin
 
 ## Use
 1. Have the [rust toolchain](https://www.rust-lang.org/tools/install) installed
-1. Clone this repo
-1. Run with `cargo run --release` to get the help message
-1. Run with `cargo run --release -- update` to download and install the latest version of duckdb
+1. Run `cargo install duckup`
+1. Run `duckup` for help message
+1. Run `duckup update` to install the latest version of the duckdb CLI into `~/.local/bin`
