@@ -278,31 +278,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let info = os_info::get();
-    dbg!(&info);
 
     // Check that we are only running on Linux
+    if (&info.os_type().to_string() == "Windows") | (&info.os_type().to_string() == "Mac") {
+        panic!("Running on Windows or Mac. Will only work on Linux.")
+    }
 
+    let zip_urls: Vec<String> = get_latest_release_zip_urls()?.into_iter().collect();
+    // Get the correct url for this architecture
+    let url = get_matching_url(&zip_urls, &info)?;
+    println!("Going to download {}", url);
 
-    // let zip_urls: Vec<String> = get_latest_release_zip_urls()?.into_iter().collect();
-    // // Get the correct url for this architecture
-    // let url = get_matching_url(&zip_urls, &info)?;
-    // println!("Going to download {}", url);
+    // Create a temp directory for unzipping
+    let zip_dir = tempdir()?;
+    std::fs::create_dir_all(zip_dir.path())?;
+    // Download the file
+    let zip_file_path = download_zip(url, zip_dir.path())?;
 
-    // // Create a temp directory for unzipping
-    // let zip_dir = tempdir()?;
-    // std::fs::create_dir_all(zip_dir.path())?;
-    // // Download the file
-    // let zip_file_path = download_zip(url, &zip_dir.path())?;
+    println!("Downloaded successfully!");
 
-    // println!("Downloaded successfully!");
-
-    // let final_path = home::home_dir()
-    //     .expect("Could not find home directory")
-    //     .join(".local")
-    //     .join("bin/");
-    // std::fs::create_dir_all(final_path.clone())?;
-    // unzip_file(&zip_file_path, &final_path.clone())?;
-    // println!("Unzipped successfully into {:?}", final_path);
+    let final_path = home::home_dir()
+        .expect("Could not find home directory")
+        .join(".local")
+        .join("bin/");
+    std::fs::create_dir_all(final_path.clone())?;
+    unzip_file(&zip_file_path, &final_path.clone())?;
+    println!("Unzipped successfully into {:?}", final_path);
 
     Ok(())
 }
