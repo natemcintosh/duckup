@@ -1,5 +1,6 @@
 use std::{
-    fs::File,
+    fs::{self, File},
+    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
 
@@ -278,16 +279,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let info = os_info::get();
-    let zip_urls: Vec<String> = get_latest_release_zip_urls()?.into_iter().collect();
+    let zip_urls: Vec<String> = get_latest_release_zip_urls()
+        .expect("Could not get latest release info")
+        .into_iter()
+        .collect();
     // Get the correct url for this architecture
-    let url = get_matching_url(&zip_urls, &info)?;
+    let url = get_matching_url(&zip_urls, &info).expect("Could not find a URL for this computer");
     println!("Going to download {}", url);
 
     // Create a temp directory for unzipping
-    let zip_dir = tempdir()?;
-    std::fs::create_dir_all(zip_dir.path())?;
+    let zip_dir = tempdir().expect("Could not make tempdir to put zip file in");
+    std::fs::create_dir_all(zip_dir.path()).expect("Could not create folder within tempdir");
     // Download the file
-    let zip_file_path = download_zip(url, &zip_dir.path())?;
+    let zip_file_path =
+        download_zip(url, &zip_dir.path()).expect("Failed to download the zip file");
 
     println!("Downloaded successfully!");
 
@@ -298,6 +303,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(final_path.clone())?;
     unzip_file(&zip_file_path, &final_path.clone())?;
     println!("Unzipped successfully into {:?}", final_path);
+
+    // Make file executable
+    let mut perms = fs::metadata(final_path.clone())?.permissions();
+    perms.set_mode(0o755);
+    std::fs::set_permissions(final_path.clone(), perms)
+        .expect("Could not set the duckdb executable as executable");
+    std::process::Command::new("chmod")
+        .args([
+            "+x",
+            final_path.to_str().expect("Failed to convert to &str"),
+        ])
+        .status()
+        .expect("Unable to set permissions");
 
     Ok(())
 }
