@@ -278,6 +278,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let info = os_info::get();
+
+    // Check that we are only running on Linux
+    if &info.os_type().to_string() == "Windows" {
+        panic!("Running on Windows. Will only work on Linux.")
+    } else if &info.os_type().to_string() == "Mac OS" {
+        panic!("Running on Mac. Will only work on Linux.")
+    }
+
     let zip_urls: Vec<String> = get_latest_release_zip_urls()?.into_iter().collect();
     // Get the correct url for this architecture
     let url = get_matching_url(&zip_urls, &info)?;
@@ -287,7 +295,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let zip_dir = tempdir()?;
     std::fs::create_dir_all(zip_dir.path())?;
     // Download the file
-    let zip_file_path = download_zip(url, &zip_dir.path())?;
+    let zip_file_path = download_zip(url, zip_dir.path())?;
 
     println!("Downloaded successfully!");
 
