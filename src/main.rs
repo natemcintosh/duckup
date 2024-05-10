@@ -280,7 +280,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let info = os_info::get();
 
     // Check that we are only running on Linux
-    if (&info.os_type().to_string() == "Windows") | (&info.os_type().to_string() == "Mac") {
+    if (&info.os_type().to_string() == "Windows") | (&info.os_type().to_string() == "Macos") {
         panic!("Running on Windows or Mac. Will only work on Linux.")
     }
 
