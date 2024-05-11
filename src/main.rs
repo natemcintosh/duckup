@@ -1,9 +1,10 @@
 use std::{
-    fs::{self, File},
+    fs::File,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
 
+use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use reqwest::{blocking::Client, header::USER_AGENT};
 use tempfile::tempdir;
@@ -165,7 +166,7 @@ pub struct Reactions {
     pub eyes: i64,
 }
 
-fn get_latest_release_zip_urls() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+fn get_latest_release_zip_urls() -> Result<Vec<String>> {
     // Construct the URL for GitHub API to fetch the latest release information
     let url = "https://api.github.com/repos/duckdb/duckdb/releases/latest";
 
@@ -176,7 +177,7 @@ fn get_latest_release_zip_urls() -> Result<Vec<String>, Box<dyn std::error::Erro
         .header(USER_AGENT, "duckup")
         .send()?
         .text()?;
-    let release: Release = serde_json::from_str(&text)?;
+    let release: Release = serde_json::from_str(&text).context("Failed to parse release JSON")?;
 
     // Extract the URL of the zip files from the release information
     Ok(release
@@ -186,33 +187,35 @@ fn get_latest_release_zip_urls() -> Result<Vec<String>, Box<dyn std::error::Erro
         .collect())
 }
 
-fn download_zip(url: &str, output_dir: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn download_zip(url: &str, output_dir: &Path) -> Result<PathBuf> {
     // Create a reqwest client
     let client = Client::new();
 
     // Send a GET request to the provided URL
-    let mut response = client.get(url).send()?;
+    let mut response = client.get(url).send().context("Failed to download file")?;
 
     // Check if the request was successful
     if !response.status().is_success() {
-        return Err("Failed to download file".into());
+        return Err(anyhow!("Failed to download file"));
     }
 
     // Open a file to write the downloaded content
     let zip_file_path = output_dir.join("downloaded.zip");
-    let mut file = File::create(&zip_file_path)?;
+    let mut file = File::create(&zip_file_path).context("Failed to create file for writing to")?;
 
     // Copy the content of the response to the file
     let _ = response.copy_to(&mut file);
     Ok(zip_file_path)
 }
 
-fn unzip_file(zip_file: &Path, output_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn unzip_file(zip_file: &Path, output_dir: &Path) -> Result<()> {
     let file = File::open(zip_file)?;
-    let mut archive = ZipArchive::new(file)?;
+    let mut archive = ZipArchive::new(file).context("Failed to open file as a zip file")?;
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)?;
+        let mut file = archive
+            .by_index(i)
+            .context("Failed to get file at zip archive index")?;
         let outpath = Path::new(output_dir).join(file.name());
 
         if let Some(parent_dir) = outpath.parent() {
@@ -232,10 +235,7 @@ fn unzip_file(zip_file: &Path, output_dir: &Path) -> Result<(), Box<dyn std::err
     Ok(())
 }
 
-fn get_matching_url<'a>(
-    zip_urls: &'a [String],
-    info: &'a os_info::Info,
-) -> Result<&'a str, Box<dyn std::error::Error>> {
+fn get_matching_url<'a>(zip_urls: &'a [String], info: &'a os_info::Info) -> Result<&'a str> {
     Ok(zip_urls
         .iter()
         // Filter to urls with this OS
@@ -250,7 +250,7 @@ fn get_matching_url<'a>(
             Some("amd" | "x86_64") => url.contains("amd"),
             Some(&_) | None => false,
         })
-        .ok_or("Could not find any matching URLs")?)
+        .context("Could not find any matching URLs")?)
 }
 
 #[derive(clap::Parser)]
@@ -273,7 +273,7 @@ enum Commands {
 
 /// Performs all of the actions to download the newest version, and store it in
 /// `dest_folder`
-fn update(dest_folder: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn update(dest_folder: &Path) -> Result<()> {
     let zip_urls: Vec<String> = get_latest_release_zip_urls()?.into_iter().collect();
     // Get the correct url for this architecture
     let info = os_info::get();
@@ -293,17 +293,20 @@ fn update(dest_folder: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Unzipped successfully into {dest_folder:?}");
 
     // Make file executable
-    let mut perms = fs::metadata(dest_folder)?.permissions();
+    let executable_file = dest_folder.join("duckdb");
+    let mut perms = std::fs::metadata(&executable_file)
+        .context("failed to stat file")?
+        .permissions();
     perms.set_mode(0o755);
-    std::fs::set_permissions(dest_folder, perms)
-        .expect("Could not set the duckdb executable as executable");
-    std::process::Command::new("chmod")
-        .args([
-            "+x",
-            dest_folder.to_str().expect("Failed to convert to &str"),
-        ])
-        .status()
-        .expect("Unable to set permissions");
+    std::fs::set_permissions(&executable_file, perms).context("failed to set permissions")?;
+    println!("Successfully set permissions");
+    // std::process::Command::new("chmod")
+    //     .args([
+    //         "+x",
+    //         dest_folder.to_str().expect("Failed to convert to &str"),
+    //     ])
+    //     .status()
+    //     .expect("Unable to set permissions");
 
     Ok(())
 }
@@ -328,12 +331,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let dest_folder = match cli.folder_path {
-        Some(p) => PathBuf::from(p),
+        Some(ref p) => PathBuf::from(p),
         None => home::home_dir()
             .expect("Could not get home directory")
             .join(".local")
             .join("bin"),
-    };
+    }
+    .canonicalize()
+    .with_context(|| format!("Could not canonicalize {:?} handed in", cli.folder_path))?;
     update(&dest_folder)?;
 
     Ok(())
