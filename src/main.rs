@@ -259,6 +259,7 @@ struct Cli {
     /// Run the update, downloading the latest binary, and installing it
     #[command(subcommand)]
     command: Option<Commands>,
+    // Path to folder to put binary in
 }
 
 #[derive(clap::Subcommand)]
@@ -303,14 +304,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Could not find home directory")
         .join(".local")
         .join("bin/");
-    std::fs::create_dir_all(final_path.clone())?;
-    unzip_file(&zip_file_path, &final_path.clone())?;
+    std::fs::create_dir_all(&final_path)?;
+    unzip_file(&zip_file_path, &final_path)?;
     println!("Unzipped successfully into {final_path:?}");
 
     // Make file executable
-    let mut perms = fs::metadata(final_path.clone())?.permissions();
+    let mut perms = fs::metadata(&final_path)?.permissions();
     perms.set_mode(0o755);
-    std::fs::set_permissions(final_path.clone(), perms)
+    std::fs::set_permissions(&final_path, perms)
         .expect("Could not set the duckdb executable as executable");
     std::process::Command::new("chmod")
         .args([
