@@ -279,10 +279,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let info = os_info::get();
-    let zip_urls: Vec<String> = get_latest_release_zip_urls()
-        .expect("Could not get latest release info")
-        .into_iter()
-        .collect();
+
+    // Check that we are only running on Linux
+    if &info.os_type().to_string() == "Windows" {
+        panic!("Running on Windows. Will only work on Linux.")
+    } else if &info.os_type().to_string() == "Mac OS" {
+        panic!("Running on Mac. Will only work on Linux.")
+    }
+
+    let zip_urls: Vec<String> = get_latest_release_zip_urls()?.into_iter().collect();
     // Get the correct url for this architecture
     let url = get_matching_url(&zip_urls, &info).expect("Could not find a URL for this computer");
     println!("Going to download {}", url);
