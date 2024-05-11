@@ -259,13 +259,53 @@ struct Cli {
     /// Run the update, downloading the latest binary, and installing it
     #[command(subcommand)]
     command: Option<Commands>,
-    // Path to folder to put binary in
+
+    /// Set the folder to put the binary in. Default is `$HOME/.local/bin/`
+    #[arg(short, long)]
+    folder_path: Option<String>,
 }
 
 #[derive(clap::Subcommand)]
 enum Commands {
     /// Runs the update
     Update,
+}
+
+/// Performs all of the actions to download the newest version, and store it in
+/// `dest_folder`
+fn update(dest_folder: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let zip_urls: Vec<String> = get_latest_release_zip_urls()?.into_iter().collect();
+    // Get the correct url for this architecture
+    let info = os_info::get();
+    let url = get_matching_url(&zip_urls, &info).expect("Could not find a URL for this computer");
+    println!("Going to download {url}");
+
+    // Create a temp directory for unzipping
+    let zip_dir = tempdir().expect("Could not make tempdir to put zip file in");
+    std::fs::create_dir_all(zip_dir.path()).expect("Could not create folder within tempdir");
+    // Download the file
+    let zip_file_path = download_zip(url, zip_dir.path()).expect("Failed to download the zip file");
+
+    println!("Downloaded successfully!");
+
+    std::fs::create_dir_all(dest_folder)?;
+    unzip_file(&zip_file_path, dest_folder)?;
+    println!("Unzipped successfully into {dest_folder:?}");
+
+    // Make file executable
+    let mut perms = fs::metadata(dest_folder)?.permissions();
+    perms.set_mode(0o755);
+    std::fs::set_permissions(dest_folder, perms)
+        .expect("Could not set the duckdb executable as executable");
+    std::process::Command::new("chmod")
+        .args([
+            "+x",
+            dest_folder.to_str().expect("Failed to convert to &str"),
+        ])
+        .status()
+        .expect("Unable to set permissions");
+
+    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -287,39 +327,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         panic!("Running on Mac. Will only work on Linux.")
     }
 
-    let zip_urls: Vec<String> = get_latest_release_zip_urls()?.into_iter().collect();
-    // Get the correct url for this architecture
-    let url = get_matching_url(&zip_urls, &info).expect("Could not find a URL for this computer");
-    println!("Going to download {url}");
-
-    // Create a temp directory for unzipping
-    let zip_dir = tempdir().expect("Could not make tempdir to put zip file in");
-    std::fs::create_dir_all(zip_dir.path()).expect("Could not create folder within tempdir");
-    // Download the file
-    let zip_file_path = download_zip(url, zip_dir.path()).expect("Failed to download the zip file");
-
-    println!("Downloaded successfully!");
-
-    let final_path = home::home_dir()
-        .expect("Could not find home directory")
-        .join(".local")
-        .join("bin/");
-    std::fs::create_dir_all(&final_path)?;
-    unzip_file(&zip_file_path, &final_path)?;
-    println!("Unzipped successfully into {final_path:?}");
-
-    // Make file executable
-    let mut perms = fs::metadata(&final_path)?.permissions();
-    perms.set_mode(0o755);
-    std::fs::set_permissions(&final_path, perms)
-        .expect("Could not set the duckdb executable as executable");
-    std::process::Command::new("chmod")
-        .args([
-            "+x",
-            final_path.to_str().expect("Failed to convert to &str"),
-        ])
-        .status()
-        .expect("Unable to set permissions");
+    let dest_folder = match cli.folder_path {
+        Some(p) => PathBuf::from(p),
+        None => home::home_dir()
+            .expect("Could not get home directory")
+            .join(".local")
+            .join("bin"),
+    };
+    update(&dest_folder)?;
 
     Ok(())
 }
