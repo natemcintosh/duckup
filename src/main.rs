@@ -245,18 +245,17 @@ fn get_matching_url<'a>(
         // Filter to the correct architecture
         // Can't seem to find a list of what all the possible architecture might be,
         // so I'm mostly guessing here.
-        .filter(|url| match info.architecture() {
+        .find(|url| match info.architecture() {
             Some("arm64") | Some("aarch") => url.contains("aarch"),
             Some("amd") | Some("x86_64") => url.contains("amd"),
             Some(&_) | None => false,
         })
-        .next()
         .ok_or("Could not find any matching URLs")?)
 }
 
 #[derive(clap::Parser)]
 #[command(version, about, long_about = None, arg_required_else_help(true))]
-struct CLI {
+struct Cli {
     /// Run the update, downloading the latest binary, and installing it
     #[command(subcommand)]
     command: Option<Commands>,
@@ -269,7 +268,7 @@ enum Commands {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let cli = CLI::parse();
+    let cli = Cli::parse();
 
     match cli.command {
         // All is good, just continue on with what is below
@@ -297,7 +296,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(zip_dir.path()).expect("Could not create folder within tempdir");
     // Download the file
     let zip_file_path =
-        download_zip(url, &zip_dir.path()).expect("Failed to download the zip file");
+        download_zip(url, zip_dir.path()).expect("Failed to download the zip file");
 
     println!("Downloaded successfully!");
 
