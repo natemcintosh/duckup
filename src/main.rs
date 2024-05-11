@@ -246,8 +246,8 @@ fn get_matching_url<'a>(
         // Can't seem to find a list of what all the possible architecture might be,
         // so I'm mostly guessing here.
         .find(|url| match info.architecture() {
-            Some("arm64") | Some("aarch") => url.contains("aarch"),
-            Some("amd") | Some("x86_64") => url.contains("amd"),
+            Some("arm64" | "aarch") => url.contains("aarch"),
+            Some("amd" | "x86_64") => url.contains("amd"),
             Some(&_) | None => false,
         })
         .ok_or("Could not find any matching URLs")?)
@@ -289,14 +289,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let zip_urls: Vec<String> = get_latest_release_zip_urls()?.into_iter().collect();
     // Get the correct url for this architecture
     let url = get_matching_url(&zip_urls, &info).expect("Could not find a URL for this computer");
-    println!("Going to download {}", url);
+    println!("Going to download {url}");
 
     // Create a temp directory for unzipping
     let zip_dir = tempdir().expect("Could not make tempdir to put zip file in");
     std::fs::create_dir_all(zip_dir.path()).expect("Could not create folder within tempdir");
     // Download the file
-    let zip_file_path =
-        download_zip(url, zip_dir.path()).expect("Failed to download the zip file");
+    let zip_file_path = download_zip(url, zip_dir.path()).expect("Failed to download the zip file");
 
     println!("Downloaded successfully!");
 
@@ -306,7 +305,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .join("bin/");
     std::fs::create_dir_all(final_path.clone())?;
     unzip_file(&zip_file_path, &final_path.clone())?;
-    println!("Unzipped successfully into {:?}", final_path);
+    println!("Unzipped successfully into {final_path:?}");
 
     // Make file executable
     let mut perms = fs::metadata(final_path.clone())?.permissions();
