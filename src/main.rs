@@ -300,13 +300,6 @@ fn update(dest_folder: &Path) -> Result<()> {
     perms.set_mode(0o755);
     std::fs::set_permissions(&executable_file, perms).context("failed to set permissions")?;
     println!("Successfully set permissions");
-    // std::process::Command::new("chmod")
-    //     .args([
-    //         "+x",
-    //         dest_folder.to_str().expect("Failed to convert to &str"),
-    //     ])
-    //     .status()
-    //     .expect("Unable to set permissions");
 
     Ok(())
 }
