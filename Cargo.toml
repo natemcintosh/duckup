@@ -1,6 +1,6 @@
 [package]
 name = "duckup"
-version = "0.2.1"
+version = "0.2.3"
 edition = "2021"
 license-file = "LICENSE"
 description = "A tool for downloading new versions of duckdb"
