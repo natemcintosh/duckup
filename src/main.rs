@@ -14,7 +14,7 @@ use serde_derive::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Release {
+pub struct Root {
     pub url: String,
     #[serde(rename = "assets_url")]
     pub assets_url: String,
@@ -94,7 +94,7 @@ pub struct Asset {
     #[serde(rename = "node_id")]
     pub node_id: String,
     pub name: String,
-    pub label: String,
+    pub label: Option<String>,
     pub uploader: Uploader,
     #[serde(rename = "content_type")]
     pub content_type: String,
@@ -177,7 +177,7 @@ fn get_latest_release_zip_urls() -> Result<Vec<String>> {
         .header(USER_AGENT, "duckup")
         .send()?
         .text()?;
-    let release: Release = serde_json::from_str(&text).context("Failed to parse release JSON")?;
+    let release: Root = serde_json::from_str(&text).context("Failed to parse release JSON")?;
 
     // Extract the URL of the zip files from the release information
     Ok(release
