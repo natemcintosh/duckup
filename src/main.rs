@@ -238,6 +238,8 @@ fn unzip_file(zip_file: &Path, output_dir: &Path) -> Result<()> {
 fn get_matching_url<'a>(zip_urls: &'a [String], info: &'a os_info::Info) -> Result<&'a str> {
     Ok(zip_urls
         .iter()
+        // Prefer zip over gz
+        .filter(|url| url.ends_with("zip"))
         // Filter to urls with this OS
         .filter(|url| url.contains("linux"))
         // Only want the CLI binaries
